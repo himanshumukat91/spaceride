@@ -1,7 +1,7 @@
 let store = {
     user: { name: "Student" },
     rovers: ['curiosity', 'opportunity', 'spirit'],
-    page: 1,
+    sol: 1,
     maxPages: 3,
     selectedRover: 'curiosity',
     showInfo: false,
@@ -16,7 +16,7 @@ let store = {
         images: [
         ],
     },
-}
+};
 
 // add our markup to the page
 const root = document.getElementById('root')
@@ -32,32 +32,34 @@ const render = async (root, state) => {
 
 // create content
 const App = (state) => {
-    let { rovers, roverDetails, page, showInfo } = state
+    let { rovers, roverDetails, sol, showInfo } = state
 
     return `
         <header >
             <div style="display:flex; justify-content: space-between">Space View</div>
             ${menubar(rovers)}
         </header>
-        <main class="image-container">
-            ${roverDetails && roverDetails.images && roverDetails.images.length
-                ?roverDetails.images.map((image) => imageHolder(image.url)).join('')
-                :''
-            }
+        <main>
+            <div class="image-container">
+                ${roverDetails && roverDetails.images && roverDetails.images.length
+                    ?roverDetails.images.map((image) => imageHolder(image.url)).join('')
+                    :''
+                }
+            </div>
             ${showInfo
                 ?roverInfo(roverDetails)
                 :''
             }
         </main>
         <footer>
-            ${pageActions(page)}
+            ${pageActions(sol)}
         </footer>
     `
 }
 
 // listening for load event because page should load before any JS is called
 window.addEventListener('load', () => {
-    getRoverImages(store, store.selectedRover, store.page)
+    getRoverImages(store, store.selectedRover, store.sol)
     // render(root, store)
 })
 
@@ -66,14 +68,13 @@ const selectRover = (name) => {
     getRoverImages(store, name, 1);
 }
 
-const setPage = (page) => {
-    const { maxPages } = store;
-    if(page > maxPages)
-        page = 1;
-    else if(page < 1)
-        page = maxPages;
+const setSol = (sol) => {
+    if(sol > store.roverDetails.max_sol)
+        sol = 1;
+    else if(sol < 1)
+        sol = store.roverDetails.max_sol;
 
-    getRoverImages(store, store.selectedRover, page);
+    getRoverImages(store, store.selectedRover, sol);
 }
 
 toggleRoverInfo = () => {
@@ -97,11 +98,11 @@ const imageHolder = (url) => {
     return `<img class="image-holder" src="${url}"/>`;
 }
 
-const pageActions = (page) => {
+const pageActions = (sol) => {
     return `
-        <div class="footer-button" onclick="setPage(${page - 1})">Previous</div>
+        <div class="footer-button" onclick="setSol(${sol - 1})">Previous</div>
         <div class="footer-button ${store.showInfo?'active-menu':''}" onclick="toggleRoverInfo()">Show Info</div>
-        <div class="footer-button" onclick="setPage(${page + 1})">Next</div>
+        <div class="footer-button" onclick="setSol(${sol + 1})">Next</div>
     `
 }
 
@@ -137,7 +138,7 @@ const getRoverImages = (state, name, newSol) => {
         sol = newSol;
 
     // Not doing it will make the UI lag but will avoid rendering images twice
-    //updateStore(store, { selectedRover, sol});
+    // updateStore(store, { selectedRover, sol});
 
     fetch(`http://localhost:3000/rover/${selectedRover}/${sol}`)
         .then(res => res.json())
