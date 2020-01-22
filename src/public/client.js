@@ -47,7 +47,6 @@ const App = (state) => {
                 ?roverDetails.images.map((image) => imageHolder(image.url)).join('')
                 :null
             }
-            ${}
         </main>
         <footer>
             ${pageActions(page)}
