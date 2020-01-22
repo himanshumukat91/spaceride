@@ -2,6 +2,7 @@ let store = {
     user: { name: "Student" },
     rovers: ['curiosity', 'opportunity', 'spirit'],
     page: 1,
+    maxPages: 3,
     selectedRover: 'curiosity',
     showInfo: false,
     roverDetails: {
@@ -9,14 +10,10 @@ let store = {
         landing_date: "2012-08-06",
         launch_date: "2011-11-26",
         status: "active",
-        max_sol: 2540,
+        max_sol: 0,
         max_date: "2019-09-28",
-        total_photos: 366206,
+        total_photos: 0,
         images: [
-            {
-                url: "http://mars.jpl.nasa.gov/msl-raw-images/msss/00001/mcam/0001ML0000001000C0_DXXX.jpg",
-                camera: "MAST",
-            }
         ],
     },
 }
@@ -35,17 +32,21 @@ const render = async (root, state) => {
 
 // create content
 const App = (state) => {
-    let { rovers, roverDetails, page } = state
+    let { rovers, roverDetails, page, showInfo } = state
 
     return `
         <header >
-            ${header()}
+            <div style="display:flex; justify-content: space-between">Space View</div>
             ${menubar(rovers)}
         </header>
         <main class="image-container">
             ${roverDetails && roverDetails.images && roverDetails.images.length
                 ?roverDetails.images.map((image) => imageHolder(image.url)).join('')
-                :null
+                :''
+            }
+            ${showInfo
+                ?roverInfo(roverDetails)
+                :''
             }
         </main>
         <footer>
@@ -56,30 +57,38 @@ const App = (state) => {
 
 // listening for load event because page should load before any JS is called
 window.addEventListener('load', () => {
-    render(root, store)
+    getRoverImages(store, store.selectedRover, store.page)
+    // render(root, store)
 })
-
 
 // Backend requests
 const selectRover = (name) => {
     getRoverImages(store, name, 1);
 }
 
-const setSol = (page) => {
-    if(page > store.roverDetails.max_sol)
+const setPage = (page) => {
+    const { maxPages } = store;
+    if(page > maxPages)
         page = 1;
     else if(page < 1)
-        page = store.roverDetails.max_sol;
+        page = maxPages;
 
     getRoverImages(store, store.selectedRover, page);
 }
+
+toggleRoverInfo = () => {
+    updateStore(store, {showInfo: !store.showInfo})
+}
+
 
 // ------------------------------------------------------  COMPONENTS
 // Top menu bar of the application which gives option to choose between different rovers
 const menubar = (menuItems) => {
     return `
         <div class="menu">
-            ${menuItems.map(item => `<div class="menu-button" onclick="selectRover('${item}')">${item}</div>`).join('')}
+            ${menuItems.map(item => `
+                <div class="menu-button ${store.selectedRover === item?'active-menu':''}" onclick="selectRover('${item}')">${item}</div>
+            `).join('')}
         </div>
     `
 }
@@ -90,47 +99,35 @@ const imageHolder = (url) => {
 
 const pageActions = (page) => {
     return `
-        <div class="footer-button" onclick="setSol(${page - 1})">Previous</div>
-        <div class="footer-button" onclick="setSol(${1})">Latest</div>
-        <div class="footer-button" onclick="setSol(${page + 1})">Next</div>
+        <div class="footer-button" onclick="setPage(${page - 1})">Previous</div>
+        <div class="footer-button ${store.showInfo?'active-menu':''}" onclick="toggleRoverInfo()">Show Info</div>
+        <div class="footer-button" onclick="setPage(${page + 1})">Next</div>
     `
 }
 
-// Header
-const header = () => {
-    return `<div style="display:flex; justify-content: space-between">Space View</div>`;
+const roverInfo = (roverDetails) => {
+    return `
+        <div class="info-container">
+            <div class="info-field">
+                <p>Name </p>
+                <p>Launch Date </p>
+                <p>Landing Date </p>
+                <p>Status </p>
+                <p>Total Photos </p>
+            </div>
+            <div class="info-value">
+                <p>: ${roverDetails.name}</p>
+                <p>: ${roverDetails.launch_date}</p>
+                <p>: ${roverDetails.landing_date}</p>
+                <p>: ${roverDetails.status}</p>
+                <p>: ${roverDetails.total_photos}</p>
+            </div>
+        </div>
+    `
 }
 
-// Example of a pure function that renders infomation requested from the backend
-// const ImageOfTheDay = (apod) => {
-
-//     // If image does not already exist, or it is not from today -- request it again
-//     const today = new Date()
-//     const photodate = new Date(apod.date)
-//     console.log(photodate.getDate(), today.getDate());
-
-//     console.log(photodate.getDate() === today.getDate());
-//     if (!apod || apod.date === today.getDate() ) {
-//         getImageOfTheDay(store)
-//     }
-
-//     // check if the photo of the day is actually type video!
-//     if (apod.media_type === "video") {
-//         return (`
-//             <p>See today's featured video <a href="${apod.url}">here</a></p>
-//             <p>${apod.title}</p>
-//             <p>${apod.explanation}</p>
-//         `)
-//     } else {
-//         return (`
-//             <img src="${apod.image.url}" height="350px" width="100%" />
-//             <p>${apod.image.explanation}</p>
-//         `)
-//     }
-// }
 
 // ------------------------------------------------------  API CALLS
-
 const getRoverImages = (state, name, newSol) => {
     let { sol, selectedRover } = state;
 
@@ -138,6 +135,9 @@ const getRoverImages = (state, name, newSol) => {
         selectedRover = name;
     if(newSol !== undefined) 
         sol = newSol;
+
+    // Not doing it will make the UI lag but will avoid rendering images twice
+    //updateStore(store, { selectedRover, sol});
 
     fetch(`http://localhost:3000/rover/${selectedRover}/${sol}`)
         .then(res => res.json())
